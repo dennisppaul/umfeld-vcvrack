@@ -6,5 +6,5 @@ Plugin* pluginInstance;
 
 void init(Plugin* p) {
     pluginInstance = p;
-    p->addModel(modelUmgebungModule);
+    p->addModel(modelUmfeldModule);
 }

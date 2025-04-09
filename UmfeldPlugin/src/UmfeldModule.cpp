@@ -17,9 +17,9 @@
 
 // uint8_t mInstanceCounter = 0;
 
-class UmgebungApp;
+class UmfeldApp;
 
-struct UmgebungModule : Module {
+struct UmfeldModule : Module {
 
     static constexpr uint32_t SAMPLES_PER_AUDIO_BLOCK               = 512;
     float                     mLeftOutput[SAMPLES_PER_AUDIO_BLOCK]  = {0};
@@ -35,15 +35,15 @@ struct UmgebungModule : Module {
     uint32_t mBeatCounter            = 0;
 
     std::string          fCurrentAppPath;
-    const std::string    mDefaultApp         = "UmgebungApp";
+    const std::string    mDefaultApp         = "UmfeldApp";
     LedDisplayTextField* mTextFieldAppName   = nullptr;
     bool                 mInitializeApp      = true;
     bool                 mAllocateAudioblock = true;
 
 #if defined ARCH_WIN
-    HINSTANCE mHandleUmgebungSketch = 0;
+    HINSTANCE mHandleUmfeldSketch = 0;
 #else
-    void* mHandleUmgebungSketch = nullptr;
+    void* mHandleUmfeldSketch = nullptr;
 #endif
 
     enum ParamId {
@@ -85,7 +85,7 @@ struct UmgebungModule : Module {
         float                     data[length] = {};
     };
 
-    void handle_umgebung_app() {
+    void handle_umfeld_app() {
         try {
             unload_app();
         } catch (Exception e) {
@@ -105,14 +105,14 @@ struct UmgebungModule : Module {
         update_app_name();
     }
 
-    UmgebungModule() {
+    UmfeldModule() {
         // mInstanceCounter++;
         // if (mInstanceCounter > 1) {
         //     UMGB_VCV_LOG("mInstanceCounter: %i", mInstanceCounter);
         //     UMGB_VCV_LOG("WARNING multiple instances of plugins are currently not supported.");
         //     // throw Exception(string::f("multiple instances of plugins are currently not supported."));
         // }
-        handle_umgebung_app();
+        handle_umfeld_app();
 
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
         configParam(KNOB_A_PARAM, 0.f, 1.f, 0.f, "");
@@ -127,7 +127,7 @@ struct UmgebungModule : Module {
         configOutput(RIGHT_CV_OUTPUT, "");
     }
 
-    ~UmgebungModule() override {
+    ~UmfeldModule() override {
         try {
             unload_app();
         } catch (Exception e) {
@@ -157,7 +157,7 @@ struct UmgebungModule : Module {
         }
 
         if (fAudioblockFunction) {
-            fAudioblockFunction(umgebung_app, input, output, length);
+            fAudioblockFunction(umfeld_app, input, output, length);
         }
 
         for (int sample = 0; sample < length; ++sample) {
@@ -176,11 +176,11 @@ struct UmgebungModule : Module {
 
     void process(const ProcessArgs& args) override {
         if (mInitializeApp) {
-            if (umgebung_app && fSettingsFunction) {
-                fSettingsFunction(umgebung_app);
+            if (umfeld_app && fSettingsFunction) {
+                fSettingsFunction(umfeld_app);
             }
-            if (umgebung_app && fSetupFunction) {
-                fSetupFunction(umgebung_app);
+            if (umfeld_app && fSetupFunction) {
+                fSetupFunction(umfeld_app);
             }
             mInitializeApp = false;
         }
@@ -240,8 +240,8 @@ struct UmgebungModule : Module {
         mBeatTriggerCounter += args.sampleTime;
         if (mBeatTriggerCounter >= mBeatDurationSec) {
             mBeatTriggerCounter -= mBeatDurationSec;
-            if (umgebung_app && fBeatFunction) {
-                fBeatFunction(umgebung_app, mBeatCounter);
+            if (umfeld_app && fBeatFunction) {
+                fBeatFunction(umfeld_app, mBeatCounter);
                 mBeatCounter++;
             }
         }
@@ -254,7 +254,7 @@ struct UmgebungModule : Module {
         }
         lights[BLINK_LIGHT].setBrightness(blinkPhase < 0.5f ? 1.f : 0.f);
 
-        if (umgebung_app && fEventFunction) {
+        if (umfeld_app && fEventFunction) {
             // TODO only send if connected to CV … would be nice to notify the sketch of which CV is connected
             // if (inputs[LEFT_CV_INPUT].isConnected() ||
             //     inputs[RIGHT_CV_INPUT].isConnected() ||
@@ -264,7 +264,7 @@ struct UmgebungModule : Module {
             cv_event.data[RIGHT_CV_INPUT_POS] = inputs[RIGHT_CV_INPUT].getVoltage();
             cv_event.data[KNOB_PARAM_A_POS]   = params[KNOB_A_PARAM].getValue();
             cv_event.data[KNOB_PARAM_B_POS]   = params[KNOB_B_PARAM].getValue();
-            fEventFunction(umgebung_app, cv_event.data, CVEvent::length);
+            fEventFunction(umfeld_app, cv_event.data, CVEvent::length);
             outputs[LEFT_CV_OUTPUT].setVoltage(cv_event.data[LEFT_CV_OUTPUT_POS]);
             outputs[RIGHT_CV_OUTPUT].setVoltage(cv_event.data[RIGHT_CV_OUTPUT_POS]);
             // }
@@ -272,8 +272,8 @@ struct UmgebungModule : Module {
     }
 
     void call_draw() const {
-        if (umgebung_app && fDrawFunction) {
-            fDrawFunction(umgebung_app);
+        if (umfeld_app && fDrawFunction) {
+            fDrawFunction(umfeld_app);
         }
     }
 
@@ -295,17 +295,17 @@ struct UmgebungModule : Module {
         }
     }
 
-    typedef UmgebungApp* (*CreateUmgebungFunctionPtr)();
-    typedef void         (*DestroyFunctionPtr)(UmgebungApp*);
-    typedef void         (*SetupFunctionPtr)(UmgebungApp*);
-    typedef void         (*DrawFunctionPtr)(UmgebungApp*);
-    typedef void         (*BeatFunctionPtr)(UmgebungApp*, uint32_t);
-    typedef void         (*AudioblockFunctionPtr)(UmgebungApp*, float**, float**, int);
-    typedef const char*  (*NameFunctionPtr)(UmgebungApp*);
-    typedef void         (*EventFunctionPtr)(UmgebungApp*, float*, uint32_t);
+    typedef UmfeldApp* (*CreateUmfeldFunctionPtr)();
+    typedef void         (*DestroyFunctionPtr)(UmfeldApp*);
+    typedef void         (*SetupFunctionPtr)(UmfeldApp*);
+    typedef void         (*DrawFunctionPtr)(UmfeldApp*);
+    typedef void         (*BeatFunctionPtr)(UmfeldApp*, uint32_t);
+    typedef void         (*AudioblockFunctionPtr)(UmfeldApp*, float**, float**, int);
+    typedef const char*  (*NameFunctionPtr)(UmfeldApp*);
+    typedef void         (*EventFunctionPtr)(UmfeldApp*, float*, uint32_t);
 
-    CreateUmgebungFunctionPtr fCreateUmgebungFunction  = nullptr;
-    DestroyFunctionPtr        fDestroyUmgebungFunction = nullptr;
+    CreateUmfeldFunctionPtr fCreateUmfeldFunction  = nullptr;
+    DestroyFunctionPtr        fDestroyUmfeldFunction = nullptr;
     SetupFunctionPtr          fSettingsFunction        = nullptr;
     SetupFunctionPtr          fSetupFunction           = nullptr;
     DrawFunctionPtr           fDrawFunction            = nullptr;
@@ -316,15 +316,15 @@ struct UmgebungModule : Module {
 
     void load_symbols() {
         const std::string mAppName = system::getFilename(fCurrentAppPath);
-        load_symbol(mHandleUmgebungSketch, "create_umgebung", fCreateUmgebungFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "destroy_umgebung", fDestroyUmgebungFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "settings", fSettingsFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "setup", fSetupFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "draw", fDrawFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "beat", fBeatFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "audioblock", fAudioblockFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "name", fNameFunction, mAppName);
-        load_symbol(mHandleUmgebungSketch, "event", fEventFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "create_umfeld", fCreateUmfeldFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "destroy_umfeld", fDestroyUmfeldFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "settings", fSettingsFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "setup", fSetupFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "draw", fDrawFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "beat", fBeatFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "audioblock", fAudioblockFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "name", fNameFunction, mAppName);
+        load_symbol(mHandleUmfeldSketch, "event", fEventFunction, mAppName);
     }
 
     bool check_app_path(const std::string& path) {
@@ -365,51 +365,51 @@ struct UmgebungModule : Module {
             throw Exception(string::f("Failed to load library %s: %s", fCurrentAppPath.c_str(), dlerror()));
         }
 #endif
-        mHandleUmgebungSketch = handle;
+        mHandleUmfeldSketch = handle;
     }
 
     void unload_app() {
-        if (umgebung_app) {
+        if (umfeld_app) {
             /* close the library */
-            UMGB_VCV_LOG("unloading app: %p ", mHandleUmgebungSketch);
+            UMGB_VCV_LOG("unloading app: %p ", mHandleUmfeldSketch);
             destroy_app();
 
-            fCreateUmgebungFunction  = nullptr;
-            fDestroyUmgebungFunction = nullptr;
-            if (mHandleUmgebungSketch) {
+            fCreateUmfeldFunction  = nullptr;
+            fDestroyUmfeldFunction = nullptr;
+            if (mHandleUmfeldSketch) {
 #if defined ARCH_WIN
-                FreeLibrary((HINSTANCE) mHandleUmgebungSketch);
+                FreeLibrary((HINSTANCE) mHandleUmfeldSketch);
 #else
-                dlclose(mHandleUmgebungSketch);
+                dlclose(mHandleUmfeldSketch);
 #endif
-                mHandleUmgebungSketch = nullptr;
+                mHandleUmfeldSketch = nullptr;
             }
-            umgebung_app = nullptr;
+            umfeld_app = nullptr;
         }
     }
 
     const char* get_name() const {
-        return fNameFunction == nullptr ? DEFAULT_NAME : fNameFunction(umgebung_app);
+        return fNameFunction == nullptr ? DEFAULT_NAME : fNameFunction(umfeld_app);
     }
 
     const char* DEFAULT_NAME = "NOOP";
 
     void update_app_name() {
-        if (umgebung_app && fNameFunction && mTextFieldAppName) {
-            mTextFieldAppName->text = fNameFunction(umgebung_app);
+        if (umfeld_app && fNameFunction && mTextFieldAppName) {
+            mTextFieldAppName->text = fNameFunction(umfeld_app);
         }
     }
 
     void create_app() {
-        if (fCreateUmgebungFunction) {
-            umgebung_app = fCreateUmgebungFunction();
+        if (fCreateUmfeldFunction) {
+            umfeld_app = fCreateUmfeldFunction();
         }
     }
 
     void destroy_app() {
-        if (umgebung_app && fDestroyUmgebungFunction) {
+        if (umfeld_app && fDestroyUmfeldFunction) {
             UMGB_VCV_LOG("destroying app: %s", get_name());
-            fDestroyUmgebungFunction(umgebung_app);
+            fDestroyUmfeldFunction(umfeld_app);
             if (mTextFieldAppName) {
                 mTextFieldAppName->text = DEFAULT_NAME;
             }
@@ -417,18 +417,18 @@ struct UmgebungModule : Module {
     }
 
     void reload_app() {
-        handle_umgebung_app();
+        handle_umfeld_app();
         mInitializeApp = true;
     }
 
 private:
-    UmgebungApp* umgebung_app = nullptr;
+    UmfeldApp* umfeld_app = nullptr;
     CVEvent      cv_event;
 };
 
-struct UmgebungWidget : OpenGlWidget {
+struct UmfeldWidget : OpenGlWidget {
 
-    UmgebungModule* module = nullptr;
+    UmfeldModule* module = nullptr;
 
     void step() override {
         // Render every frame
@@ -539,12 +539,12 @@ struct UmgebungWidget : OpenGlWidget {
     // void onDragDrop(const DragDropEvent& e) override { UMGB_VCV_LOG("onDragDrop"); }
 };
 
-struct UmgebungModuleWidget : ModuleWidget {
-    explicit UmgebungModuleWidget(UmgebungModule* module) {
-        UMGB_VCV_LOG("Umgebung × VCV Rack");
+struct UmfeldModuleWidget : ModuleWidget {
+    explicit UmfeldModuleWidget(UmfeldModule* module) {
+        UMGB_VCV_LOG("Umfeld × VCV Rack");
 
         setModule(module);
-        setPanel(createPanel(asset::plugin(pluginInstance, "res/UmgebungModule.svg")));
+        setPanel(createPanel(asset::plugin(pluginInstance, "res/UmfeldModule.svg")));
 
         addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
@@ -556,20 +556,20 @@ struct UmgebungModuleWidget : ModuleWidget {
         constexpr float M_GRID_ROW_2           = 26.529;
         constexpr float M_GRID_CONNECTOR_SPACE = 10.127;
 
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 2)), module, UmgebungModule::LEFT_INPUT));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 2)), module, UmgebungModule::RIGHT_INPUT));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 2 + M_GRID_CONNECTOR_SPACE)), module, UmgebungModule::LEFT_CV_INPUT));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 2 + M_GRID_CONNECTOR_SPACE)), module, UmgebungModule::RIGHT_CV_INPUT));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 2)), module, UmfeldModule::LEFT_INPUT));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 2)), module, UmfeldModule::RIGHT_INPUT));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 2 + M_GRID_CONNECTOR_SPACE)), module, UmfeldModule::LEFT_CV_INPUT));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 2 + M_GRID_CONNECTOR_SPACE)), module, UmfeldModule::RIGHT_CV_INPUT));
 
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 6)), module, UmgebungModule::LEFT_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 6)), module, UmgebungModule::RIGHT_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 6 + M_GRID_CONNECTOR_SPACE)), module, UmgebungModule::LEFT_CV_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 6 + M_GRID_CONNECTOR_SPACE)), module, UmgebungModule::RIGHT_CV_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 6)), module, UmfeldModule::LEFT_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 6)), module, UmfeldModule::RIGHT_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 6 + M_GRID_CONNECTOR_SPACE)), module, UmfeldModule::LEFT_CV_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 6 + M_GRID_CONNECTOR_SPACE)), module, UmfeldModule::RIGHT_CV_OUTPUT));
 
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 4)), module, UmgebungModule::KNOB_A_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 4)), module, UmgebungModule::KNOB_B_PARAM));
-        addParam(createParamCentered<CKD6>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 4 + M_GRID_CONNECTOR_SPACE)), module, UmgebungModule::RELOAD_PARAM));
-        addParam(createParamCentered<CKD6>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 4 + M_GRID_CONNECTOR_SPACE)), module, UmgebungModule::LOAD_APP_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 4)), module, UmfeldModule::KNOB_A_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 4)), module, UmfeldModule::KNOB_B_PARAM));
+        addParam(createParamCentered<CKD6>(mm2px(Vec(M_GRID_ROW_1, M_GRID_SIZE * 4 + M_GRID_CONNECTOR_SPACE)), module, UmfeldModule::RELOAD_PARAM));
+        addParam(createParamCentered<CKD6>(mm2px(Vec(M_GRID_ROW_2, M_GRID_SIZE * 4 + M_GRID_CONNECTOR_SPACE)), module, UmfeldModule::LOAD_APP_PARAM));
 
         if (module) {
             module->mTextFieldAppName            = createWidget<LedDisplayTextField>(mm2px(Vec(32.595, 107.466)));
@@ -581,7 +581,7 @@ struct UmgebungModuleWidget : ModuleWidget {
             module->update_app_name();
         }
 
-        auto* display   = new UmgebungWidget();
+        auto* display   = new UmfeldWidget();
         display->module = module;
 
         std::cout << "RACK_GRID_WIDTH: " << RACK_GRID_WIDTH << std::endl;
@@ -617,4 +617,4 @@ struct UmgebungModuleWidget : ModuleWidget {
 };
 
 
-Model* modelUmgebungModule = createModel<UmgebungModule, UmgebungModuleWidget>("UmgebungModule");
+Model* modelUmfeldModule = createModel<UmfeldModule, UmfeldModuleWidget>("UmfeldModule");

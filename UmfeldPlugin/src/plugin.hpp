@@ -6,4 +6,4 @@ using namespace rack;
 
 extern Plugin* pluginInstance;
 
-extern Model* modelUmgebungModule;
+extern Model* modelUmfeldModule;

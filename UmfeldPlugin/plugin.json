@@ -1,9 +1,9 @@
 {
-  "slug": "UmgebungPlugin",
-  "name": "Umgebung Plugin",
+  "slug": "UmfeldPlugin",
+  "name": "Umfeld Plugin",
   "version": "2.0.0",
   "license": "CC0-1.0",
-  "brand": "Umgebung Plugin",
+  "brand": "Umfeld Plugin",
   "author": "Dennis P Paul",
   "authorEmail": "",
   "authorUrl": "https://dennisppaul.de/",
@@ -14,9 +14,9 @@
   "changelogUrl": "",
   "modules": [
     {
-      "slug": "UmgebungModule",
-      "name": "UmgebungModule",
-      "description": "Host for Umgebung Applications",
+      "slug": "UmfeldModule",
+      "name": "UmfeldModule",
+      "description": "Host for Umfeld Applications",
       "tags": [
         "Utility"
       ]

@@ -1,9 +1,9 @@
 #include <iostream>
-#include "Umgebung.h"
+#include "Umfeld.h"
 
-using namespace umgebung;
+using namespace umfeld;
 
-class UmgebungApp : public PApplet {
+class UmfeldApp : public PApplet {
 
     PFont* mFont   = nullptr;
     int    mWidth  = static_cast<int>(323.666);
@@ -96,8 +96,8 @@ class UmgebungApp : public PApplet {
     }
 
     const char* name() override {
-        return "Umgebung42";
+        return "Umfeld42";
     }
 };
 
-PApplet* umgebung::instance() { return new UmgebungApp(); }
+PApplet* umfeld::instance() { return new UmfeldApp(); }

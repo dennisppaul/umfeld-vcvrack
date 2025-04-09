@@ -1,4 +1,4 @@
-# Umgebung / VCV Rack / TODO
+# Umfeld / VCV Rack / TODO
 
 - add sketch loading via *File Chooser Dialog*
 - set `width` + `height` and clean up sizing in module

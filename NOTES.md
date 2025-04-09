@@ -1,4 +1,4 @@
-# Umgebung / VCV Rack / Notes
+# Umfeld / VCV Rack / Notes
 
 ## Setting up the Development Environment
 
