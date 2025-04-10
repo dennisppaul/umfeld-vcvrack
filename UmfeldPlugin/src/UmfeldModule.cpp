@@ -3,16 +3,16 @@
 #include <osdialog.h>
 #include "plugin.hpp"
 
-#define UMGB_VCV_DEBUG
-#ifdef UMGB_VCV_DEBUG
-#define UMGB_VCV_LOG(...) \
+#define UMFELD_VCV_DEBUG
+#ifdef UMFELD_VCV_DEBUG
+#define UMFELD_VCV_LOG(...) \
     printf("\033[32m");   \
     printf("+++ ");       \
     printf(__VA_ARGS__);  \
     printf("\033[0m");    \
     printf("\n");
 #else
-#define UMGB_VCV_LOG(...)
+#define UMFELD_VCV_LOG(...)
 #endif
 
 // uint8_t mInstanceCounter = 0;
@@ -89,17 +89,17 @@ struct UmfeldModule : Module {
         try {
             unload_app();
         } catch (Exception e) {
-            UMGB_VCV_LOG("could not unload app");
+            UMFELD_VCV_LOG("could not unload app");
         }
         try {
             load_app();
         } catch (Exception e) {
-            UMGB_VCV_LOG("could not load app");
+            UMFELD_VCV_LOG("could not load app");
         }
         try {
             load_symbols();
         } catch (Exception e) {
-            UMGB_VCV_LOG("could not load symbols");
+            UMFELD_VCV_LOG("could not load symbols");
         }
         create_app();
         update_app_name();
@@ -108,8 +108,8 @@ struct UmfeldModule : Module {
     UmfeldModule() {
         // mInstanceCounter++;
         // if (mInstanceCounter > 1) {
-        //     UMGB_VCV_LOG("mInstanceCounter: %i", mInstanceCounter);
-        //     UMGB_VCV_LOG("WARNING multiple instances of plugins are currently not supported.");
+        //     UMFELD_VCV_LOG("mInstanceCounter: %i", mInstanceCounter);
+        //     UMFELD_VCV_LOG("WARNING multiple instances of plugins are currently not supported.");
         //     // throw Exception(string::f("multiple instances of plugins are currently not supported."));
         // }
         handle_umfeld_app();
@@ -131,7 +131,7 @@ struct UmfeldModule : Module {
         try {
             unload_app();
         } catch (Exception e) {
-            UMGB_VCV_LOG("could not unload app");
+            UMFELD_VCV_LOG("could not unload app");
         }
         // if (mInstanceCounter > 0) {
         //     mInstanceCounter--;
@@ -192,7 +192,7 @@ struct UmfeldModule : Module {
         mBangReloadButtonState = params[RELOAD_PARAM].getValue();
 
         if (params[LOAD_APP_PARAM].getValue() > mBangLoadAppButtonState) {
-            UMGB_VCV_LOG("loading app");
+            UMFELD_VCV_LOG("loading app");
             // from Wavetable.hpp
             static const char WAVETABLE_FILTERS[] = "WAV (.wav):wav,WAV;Raw:f32,i8,i16,i24,i32,*";
             osdialog_filters* filters             = osdialog_filters_parse(WAVETABLE_FILTERS);
@@ -211,8 +211,8 @@ struct UmfeldModule : Module {
             // load(path);
             std::string filename;
             filename = system::getFilename(path);
-            UMGB_VCV_LOG("dir path: %s", wavetableDir.c_str());
-            UMGB_VCV_LOG("filename: %s", filename.c_str());
+            UMFELD_VCV_LOG("dir path: %s", wavetableDir.c_str());
+            UMFELD_VCV_LOG("filename: %s", filename.c_str());
         }
         mBangLoadAppButtonState = params[LOAD_APP_PARAM].getValue();
 
@@ -289,9 +289,9 @@ struct UmfeldModule : Module {
         function_ptr = (T) dlsym(handle, symbol_name);
 #endif
         if (!function_ptr) {
-            UMGB_VCV_LOG("failed to read '%s' symbol in %s", symbol_name, library_name.c_str());
+            UMFELD_VCV_LOG("failed to read '%s' symbol in %s", symbol_name, library_name.c_str());
         } else {
-            UMGB_VCV_LOG("successfully read '%s' symbol in %s", symbol_name, library_name.c_str());
+            UMFELD_VCV_LOG("successfully read '%s' symbol in %s", symbol_name, library_name.c_str());
         }
     }
 
@@ -345,12 +345,12 @@ struct UmfeldModule : Module {
 
     void load_app() {
         if (!check_app_path(fCurrentAppPath)) {
-            UMGB_VCV_LOG("resetting app to default: %s", mDefaultApp.c_str());
+            UMFELD_VCV_LOG("resetting app to default: %s", mDefaultApp.c_str());
             fCurrentAppPath = get_default_app_path();
         }
 
         /* Load app library */
-        UMGB_VCV_LOG("loading app from file: %s", fCurrentAppPath.c_str());
+        UMFELD_VCV_LOG("loading app from file: %s", fCurrentAppPath.c_str());
 #if defined ARCH_WIN
         SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
         HINSTANCE handle = LoadLibrary(mCurrentAppPath.c_str());
@@ -371,7 +371,7 @@ struct UmfeldModule : Module {
     void unload_app() {
         if (umfeld_app) {
             /* close the library */
-            UMGB_VCV_LOG("unloading app: %p ", mHandleUmfeldSketch);
+            UMFELD_VCV_LOG("unloading app: %p ", mHandleUmfeldSketch);
             destroy_app();
 
             fCreateUmfeldFunction  = nullptr;
@@ -408,7 +408,7 @@ struct UmfeldModule : Module {
 
     void destroy_app() {
         if (umfeld_app && fDestroyUmfeldFunction) {
-            UMGB_VCV_LOG("destroying app: %s", get_name());
+            UMFELD_VCV_LOG("destroying app: %s", get_name());
             fDestroyUmfeldFunction(umfeld_app);
             if (mTextFieldAppName) {
                 mTextFieldAppName->text = DEFAULT_NAME;
@@ -437,7 +437,7 @@ struct UmfeldWidget : OpenGlWidget {
     }
 
     void appendContextMenu(Menu* menu) {
-        UMGB_VCV_LOG("appendContextMenu");
+        UMFELD_VCV_LOG("appendContextMenu");
     }
 
     void onPathDrop(const PathDropEvent& e) override {
@@ -453,8 +453,8 @@ struct UmfeldWidget : OpenGlWidget {
         // }
         // module->wavetable.load(path);
         // module->wavetable.filename = system::getFilename(path);
-        UMGB_VCV_LOG("onPathDrop: %s", path.c_str());
-        // UMGB_VCV_LOG("          : %s", system::getFilename(path).c_str());
+        UMFELD_VCV_LOG("onPathDrop: %s", path.c_str());
+        // UMFELD_VCV_LOG("          : %s", system::getFilename(path).c_str());
         module->set_app_path(path);
         e.consume(this);
     }
@@ -490,7 +490,7 @@ struct UmfeldWidget : OpenGlWidget {
         if (module) {
             module->call_draw();
         } else {
-            UMGB_VCV_LOG("module not set");
+            UMFELD_VCV_LOG("module not set");
         }
     }
 
@@ -500,48 +500,48 @@ struct UmfeldWidget : OpenGlWidget {
 
     void onHover(const HoverEvent& e) override {
         /* occurs when mouse is hovering over widget */
-        // UMGB_VCV_LOG("onHover: %f, %f p:(%f, %f)", e.pos.x, e.pos.y, e.mouseDelta.x, e.mouseDelta.y);
+        // UMFELD_VCV_LOG("onHover: %f, %f p:(%f, %f)", e.pos.x, e.pos.y, e.mouseDelta.x, e.mouseDelta.y);
     }
 
     void onButton(const ButtonEvent& e) override {
         /* occurs when mouse is pressed or released over widget */
         // button: GLFW_MOUSE_BUTTON_LEFT, GLFW_MOUSE_BUTTON_RIGHT, GLFW_MOUSE_BUTTON_MIDDLE
         // action: GLFW_PRESS or GLFW_RELEASE
-        UMGB_VCV_LOG("onButton: button: %i, action: %i", e.button, e.action);
+        UMFELD_VCV_LOG("onButton: button: %i, action: %i", e.button, e.action);
     }
 
     void onHoverScroll(const HoverScrollEvent& e) override {
-        UMGB_VCV_LOG("onMouseScroll: delta: %f, %f", e.scrollDelta.x, e.scrollDelta.y);
+        UMFELD_VCV_LOG("onMouseScroll: delta: %f, %f", e.scrollDelta.x, e.scrollDelta.y);
     }
 
     void onHoverKey(const HoverKeyEvent& e) override {
         // action: GLFW_RELEASE, GLFW_PRESS, GLFW_REPEAT, or RACK_HELD
         if (e.action == GLFW_PRESS) {
-            UMGB_VCV_LOG("keyPress    : key: %s", e.keyName.c_str());
+            UMFELD_VCV_LOG("keyPress    : key: %s", e.keyName.c_str());
         } else if (e.action == GLFW_RELEASE) {
-            UMGB_VCV_LOG("keyReleased : key: %s", e.keyName.c_str());
+            UMFELD_VCV_LOG("keyReleased : key: %s", e.keyName.c_str());
         } else if (e.action == GLFW_REPEAT) {
-            UMGB_VCV_LOG("keyRepeat   : key: %s", e.keyName.c_str());
+            UMFELD_VCV_LOG("keyRepeat   : key: %s", e.keyName.c_str());
         } else if (e.action == RACK_HELD) {
-            // UMGB_VCV_LOG("keyHeld     : key: %s", e.keyName.c_str());
+            // UMFELD_VCV_LOG("keyHeld     : key: %s", e.keyName.c_str());
         } else {
-            UMGB_VCV_LOG("onHoverKey  : key: %c, scancode: %i, keyName: %s, action: %i, mods: %i", e.key, e.scancode, e.keyName.c_str(), e.action, e.mods);
+            UMFELD_VCV_LOG("onHoverKey  : key: %c, scancode: %i, keyName: %s, action: %i, mods: %i", e.key, e.scancode, e.keyName.c_str(), e.action, e.mods);
         }
     }
 
     /* these methods below seem to have no effect: */
-    // void onHoverText(const HoverTextEvent& e) override { UMGB_VCV_LOG("onHoverText: codepoint: %i", e.codepoint); }
-    // void onEnter(const EnterEvent& e) override { UMGB_VCV_LOG("onEnter"); }
-    // void onLeave(const LeaveEvent& e) override { UMGB_VCV_LOG("onLeave"); }
-    // void onSelect(const SelectEvent& e) override { UMGB_VCV_LOG("onSelect"); }
-    // void onDragStart(const DragStartEvent& e) override { UMGB_VCV_LOG("onDragStart"); }
-    // void onDragEnd(const DragEndEvent& e) override { UMGB_VCV_LOG("onDragEnd"); }
-    // void onDragDrop(const DragDropEvent& e) override { UMGB_VCV_LOG("onDragDrop"); }
+    // void onHoverText(const HoverTextEvent& e) override { UMFELD_VCV_LOG("onHoverText: codepoint: %i", e.codepoint); }
+    // void onEnter(const EnterEvent& e) override { UMFELD_VCV_LOG("onEnter"); }
+    // void onLeave(const LeaveEvent& e) override { UMFELD_VCV_LOG("onLeave"); }
+    // void onSelect(const SelectEvent& e) override { UMFELD_VCV_LOG("onSelect"); }
+    // void onDragStart(const DragStartEvent& e) override { UMFELD_VCV_LOG("onDragStart"); }
+    // void onDragEnd(const DragEndEvent& e) override { UMFELD_VCV_LOG("onDragEnd"); }
+    // void onDragDrop(const DragDropEvent& e) override { UMFELD_VCV_LOG("onDragDrop"); }
 };
 
 struct UmfeldModuleWidget : ModuleWidget {
     explicit UmfeldModuleWidget(UmfeldModule* module) {
-        UMGB_VCV_LOG("Umfeld × VCV Rack");
+        UMFELD_VCV_LOG("Umfeld × VCV Rack");
 
         setModule(module);
         setPanel(createPanel(asset::plugin(pluginInstance, "res/UmfeldModule.svg")));
