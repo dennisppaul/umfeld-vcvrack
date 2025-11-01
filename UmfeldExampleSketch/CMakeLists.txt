@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(UmfeldApp)                                            # set application name
+project(UmfeldApp)                                          # set application name
 set(UMFELD_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../umfeld") # set path to umfeld library e.g `set(UMFELD_PATH "<absolute/path/to/library>")`
-link_directories("/usr/local/lib")                              # optional, can help to fix issues with Homebrew on macOS
-link_directories("/opt/homebrew/lib/")
 
 option(DISABLE_GRAPHICS "Disable graphic output" OFF)
 option(DISABLE_VIDEO "Disable video output" OFF)

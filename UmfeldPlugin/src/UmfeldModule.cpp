@@ -295,8 +295,9 @@ struct UmfeldModule : Module {
         }
     }
 
-    typedef UmfeldApp* (*CreateUmfeldFunctionPtr)();
+    typedef UmfeldApp*   (*CreateUmfeldFunctionPtr)();
     typedef void         (*DestroyFunctionPtr)(UmfeldApp*);
+    typedef void         (*SettingsFunctionPtr)(UmfeldApp*);
     typedef void         (*SetupFunctionPtr)(UmfeldApp*);
     typedef void         (*DrawFunctionPtr)(UmfeldApp*);
     typedef void         (*BeatFunctionPtr)(UmfeldApp*, uint32_t);
@@ -304,9 +305,9 @@ struct UmfeldModule : Module {
     typedef const char*  (*NameFunctionPtr)(UmfeldApp*);
     typedef void         (*EventFunctionPtr)(UmfeldApp*, float*, uint32_t);
 
-    CreateUmfeldFunctionPtr fCreateUmfeldFunction  = nullptr;
-    DestroyFunctionPtr        fDestroyUmfeldFunction = nullptr;
-    SetupFunctionPtr          fSettingsFunction        = nullptr;
+    CreateUmfeldFunctionPtr   fCreateUmfeldFunction    = nullptr;
+    DestroyFunctionPtr        fDestroyUmfeldFunction   = nullptr;
+    SettingsFunctionPtr       fSettingsFunction        = nullptr;
     SetupFunctionPtr          fSetupFunction           = nullptr;
     DrawFunctionPtr           fDrawFunction            = nullptr;
     BeatFunctionPtr           fBeatFunction            = nullptr;
@@ -423,7 +424,7 @@ struct UmfeldModule : Module {
 
 private:
     UmfeldApp* umfeld_app = nullptr;
-    CVEvent      cv_event;
+    CVEvent    cv_event;
 };
 
 struct UmfeldWidget : OpenGlWidget {

@@ -4,23 +4,23 @@
 
 following instructions from [Plugin Development Tutorial](https://vcvrack.com/manual/PluginDevelopmentTutorial) for macOS:
 
-```zsh
-$ brew install git wget cmake autoconf automake libtool jq python zstd pkg-config
-$ git clone https://github.com/VCVRack/Rack.git
-$ cd Rack
-$ git submodule update --init --recursive
-$ make dep
-$ make
-$ export RACK_DIR=~/Documents/dev/Rack
+```sh
+brew install git wget cmake autoconf automake libtool jq python zstd pkg-config
+git clone https://github.com/VCVRack/Rack.git
+cd Rack
+git submodule update --init --recursive
+make dep
+make
+export RACK_DIR=~/Documents/dev/Rack
 ...
-$ $RACK_DIR/helper.py createplugin MyPlugin
-$ cd MyPlugin
-$ make
+$RACK_DIR/helper.py createplugin MyPlugin
+cd MyPlugin
+make
 ( save `MyModule.svg.` to folder `res` )
-$ $RACK_DIR/helper.py createmodule MyModule res/MyModule.svg src/MyModule.cpp
+$RACK_DIR/helper.py createmodule MyModule res/MyModule.svg src/MyModule.cpp
 ( modify source )
-$ make
-$ make dist
+make
+make dist
 ( copy plugin from `‌dist` to `~/Library/Application Support/Rack2/` )
 ```
 
@@ -33,3 +33,25 @@ $ make dist
 - Object IDs: Layer Names
 - Minify unchecked
 - Responsive unchecked
+
+## Developing on macOS
+
+run VCV Rack in debug mode:
+
+```sh
+/Applications/VCV\ Rack\ 2\ Free.app/Contents/MacOS/Rack --debug
+```
+
+compile example sketch:
+
+```sh
+cd umfeld-vcvrack/UmfeldExampleSketch
+cmake -B build ; cmake --build build --parallel
+```
+
+compile umfeld plugin:
+
+```sh
+cd umfeld-vcvrack/UmfeldPlugin
+make dist
+```
