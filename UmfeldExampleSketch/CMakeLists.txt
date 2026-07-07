@@ -25,7 +25,7 @@ add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         OUTPUT_NAME ${PROJECT_NAME}
-        SUFFIX ".dylib"
+        PREFIX ""
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE KLST_VCV_DEBUG)
 

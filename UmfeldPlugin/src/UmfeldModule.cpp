@@ -1,21 +1,18 @@
 #include <dlfcn.h>
-#include <iostream>
 #include <osdialog.h>
 #include "plugin.hpp"
 
 #define UMFELD_VCV_DEBUG
 #ifdef UMFELD_VCV_DEBUG
 #define UMFELD_VCV_LOG(...) \
-    printf("\033[32m");   \
-    printf("+++ ");       \
-    printf(__VA_ARGS__);  \
-    printf("\033[0m");    \
+    printf("\033[32m");     \
+    printf("+++ ");         \
+    printf(__VA_ARGS__);    \
+    printf("\033[0m");      \
     printf("\n");
 #else
 #define UMFELD_VCV_LOG(...)
 #endif
-
-// uint8_t mInstanceCounter = 0;
 
 class UmfeldApp;
 
@@ -35,10 +32,9 @@ struct UmfeldModule : Module {
     uint32_t mBeatCounter            = 0;
 
     std::string          fCurrentAppPath;
-    const std::string    mDefaultApp         = "UmfeldApp";
-    LedDisplayTextField* mTextFieldAppName   = nullptr;
-    bool                 mInitializeApp      = true;
-    bool                 mAllocateAudioblock = true;
+    const std::string    mDefaultApp       = "UmfeldApp";
+    LedDisplayTextField* mTextFieldAppName = nullptr;
+    bool                 mInitializeApp    = true;
 
 #if defined ARCH_WIN
     HINSTANCE mHandleUmfeldSketch = 0;
@@ -106,14 +102,7 @@ struct UmfeldModule : Module {
     }
 
     UmfeldModule() {
-        // mInstanceCounter++;
-        // if (mInstanceCounter > 1) {
-        //     UMFELD_VCV_LOG("mInstanceCounter: %i", mInstanceCounter);
-        //     UMFELD_VCV_LOG("WARNING multiple instances of plugins are currently not supported.");
-        //     // throw Exception(string::f("multiple instances of plugins are currently not supported."));
-        // }
-        handle_umfeld_app();
-
+        // Bug #4: config() must run before handle_umfeld_app() so ports/params are ready
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
         configParam(KNOB_A_PARAM, 0.f, 1.f, 0.f, "");
         configParam(KNOB_B_PARAM, 0.f, 1.f, 0.f, "");
@@ -125,6 +114,7 @@ struct UmfeldModule : Module {
         configOutput(RIGHT_OUTPUT, "");
         configOutput(LEFT_CV_OUTPUT, "");
         configOutput(RIGHT_CV_OUTPUT, "");
+        handle_umfeld_app();
     }
 
     ~UmfeldModule() override {
@@ -133,45 +123,6 @@ struct UmfeldModule : Module {
         } catch (Exception e) {
             UMFELD_VCV_LOG("could not unload app");
         }
-        // if (mInstanceCounter > 0) {
-        //     mInstanceCounter--;
-        // }
-    }
-
-    void process_audio(const int length) {
-        constexpr int numChannels = 2;
-        auto**        input       = new float*[numChannels];
-        auto**        output      = new float*[numChannels];
-
-        for (int i = 0; i < numChannels; ++i) {
-            input[i]  = new float[length];
-            output[i] = new float[length];
-        }
-
-        for (int sample = 0; sample < length; ++sample) {
-            // TODO this must be read from the input buffer
-            input[0][sample]  = inputs[LEFT_INPUT].getVoltage() / 5.0f;
-            input[1][sample]  = inputs[RIGHT_INPUT].getVoltage() / 5.0f;
-            output[0][sample] = 0.0f; // Initialize output to 0
-            output[1][sample] = 0.0f;
-        }
-
-        if (fAudioblockFunction) {
-            fAudioblockFunction(umfeld_app, input, output, length);
-        }
-
-        for (int sample = 0; sample < length; ++sample) {
-            // TODO this must be written to the output buffer
-            outputs[LEFT_OUTPUT].setVoltage(output[0][sample] * 5.0f);
-            outputs[RIGHT_OUTPUT].setVoltage(output[1][sample] * 5.0f);
-        }
-
-        for (int i = 0; i < numChannels; ++i) {
-            delete[] input[i];
-            delete[] output[i];
-        }
-        delete[] input;
-        delete[] output;
     }
 
     void process(const ProcessArgs& args) override {
@@ -193,49 +144,37 @@ struct UmfeldModule : Module {
 
         if (params[LOAD_APP_PARAM].getValue() > mBangLoadAppButtonState) {
             UMFELD_VCV_LOG("loading app");
-            // from Wavetable.hpp
-            static const char WAVETABLE_FILTERS[] = "WAV (.wav):wav,WAV;Raw:f32,i8,i16,i24,i32,*";
-            osdialog_filters* filters             = osdialog_filters_parse(WAVETABLE_FILTERS);
+            // Bug #8: use correct file filter for sketch libraries
+            static const char SKETCH_FILTERS[] = "Umfeld Sketch:dylib,so,dll";
+            osdialog_filters* filters           = osdialog_filters_parse(SKETCH_FILTERS);
             DEFER({ osdialog_filters_free(filters); });
 
-            // std::string       wavetableDir;
             char* pathC = osdialog_file(OSDIALOG_OPEN, NULL, NULL, filters);
-            // char* pathC = osdialog_file(OSDIALOG_OPEN, wavetableDir.empty() ? NULL : wavetableDir.c_str(), NULL, filters);
-            if (!pathC) {
-                // Fail silently
-                return;
+            if (pathC) {
+                // Bug #1: actually load the sketch after file dialog
+                std::string path = pathC;
+                std::free(pathC);
+                set_app_path(path);
+                reload_app();
             }
-            std::string path = pathC;
-            std::free(pathC);
-            std::string wavetableDir = system::getDirectory(path);
-            // load(path);
-            std::string filename;
-            filename = system::getFilename(path);
-            UMFELD_VCV_LOG("dir path: %s", wavetableDir.c_str());
-            UMFELD_VCV_LOG("filename: %s", filename.c_str());
         }
         mBangLoadAppButtonState = params[LOAD_APP_PARAM].getValue();
 
-        // outputs[LEFT_OUTPUT].setVoltage(inputs[LEFT_INPUT].getVoltage());  // pass through
-        // outputs[RIGHT_OUTPUT].setVoltage(inputs[RIGHT_INPUT].getVoltage()); // pass through
-
-        //         float mSampleLeft                    = mLeftOutput[mSampleCollectorCounter];
-        //         float mSampleRight                   = mRightOutput[mSampleCollectorCounter];
-        //         mLeftInput[mSampleCollectorCounter]  = inputs[LEFT_IN_INPUT].getVoltage() / 5.f;
-        //         mRightInput[mSampleCollectorCounter] = inputs[RIGHT_IN_INPUT].getVoltage() / 5.f;
-        //         mSampleCollectorCounter++;
-        //         if (mSampleCollectorCounter >= SAMPLES_PER_AUDIO_BLOCK) {
-        //             mSampleCollectorCounter = 0;
-        //             mAudioblockCallback(mLeftOutput, mRightOutput, mLeftInput, mRightInput);
-        //         }
-
-        //         std::cout << "inputs[LEFT_INPUT] : " << inputs[LEFT_INPUT].getVoltage() << std::endl;
-        //         std::cout << "inputs[RIGHT_INPUT]: " << inputs[RIGHT_INPUT].getVoltage() << std::endl;
-        //         std::cout << "params[PITCH_PARAM]: " << params[PITCH_PARAM].getValue() << std::endl;
-        //         std::cout << std::endl;
-
-        // TODO implement audio processing with SAMPLES_PER_AUDIO_BLOCK greater than 1 ;)
-        process_audio(1);
+        // Bug #5: replaced per-sample heap allocation with accumulator pattern
+        // Output previous block's samples; accumulate input; flush every SAMPLES_PER_AUDIO_BLOCK
+        outputs[LEFT_OUTPUT].setVoltage(mLeftOutput[mSampleCollectorCounter] * 5.0f);
+        outputs[RIGHT_OUTPUT].setVoltage(mRightOutput[mSampleCollectorCounter] * 5.0f);
+        mLeftInput[mSampleCollectorCounter]  = inputs[LEFT_INPUT].getVoltage() / 5.0f;
+        mRightInput[mSampleCollectorCounter] = inputs[RIGHT_INPUT].getVoltage() / 5.0f;
+        mSampleCollectorCounter++;
+        if (mSampleCollectorCounter >= SAMPLES_PER_AUDIO_BLOCK) {
+            mSampleCollectorCounter = 0;
+            if (umfeld_app && fAudioblockFunction) {
+                float* channelInput[2]  = {mLeftInput, mRightInput};
+                float* channelOutput[2] = {mLeftOutput, mRightOutput};
+                fAudioblockFunction(umfeld_app, channelInput, channelOutput, SAMPLES_PER_AUDIO_BLOCK);
+            }
+        }
 
         mBeatTriggerCounter += args.sampleTime;
         if (mBeatTriggerCounter >= mBeatDurationSec) {
@@ -255,11 +194,6 @@ struct UmfeldModule : Module {
         lights[BLINK_LIGHT].setBrightness(blinkPhase < 0.5f ? 1.f : 0.f);
 
         if (umfeld_app && fEventFunction) {
-            // TODO only send if connected to CV … would be nice to notify the sketch of which CV is connected
-            // if (inputs[LEFT_CV_INPUT].isConnected() ||
-            //     inputs[RIGHT_CV_INPUT].isConnected() ||
-            //     outputs[LEFT_CV_OUTPUT].isConnected() ||
-            //     outputs[RIGHT_CV_OUTPUT].isConnected()) {
             cv_event.data[LEFT_CV_INPUT_POS]  = inputs[LEFT_CV_INPUT].getVoltage();
             cv_event.data[RIGHT_CV_INPUT_POS] = inputs[RIGHT_CV_INPUT].getVoltage();
             cv_event.data[KNOB_PARAM_A_POS]   = params[KNOB_A_PARAM].getValue();
@@ -267,7 +201,6 @@ struct UmfeldModule : Module {
             fEventFunction(umfeld_app, cv_event.data, CVEvent::length);
             outputs[LEFT_CV_OUTPUT].setVoltage(cv_event.data[LEFT_CV_OUTPUT_POS]);
             outputs[RIGHT_CV_OUTPUT].setVoltage(cv_event.data[RIGHT_CV_OUTPUT_POS]);
-            // }
         }
     }
 
@@ -295,25 +228,25 @@ struct UmfeldModule : Module {
         }
     }
 
-    typedef UmfeldApp*   (*CreateUmfeldFunctionPtr)();
-    typedef void         (*DestroyFunctionPtr)(UmfeldApp*);
-    typedef void         (*SettingsFunctionPtr)(UmfeldApp*);
-    typedef void         (*SetupFunctionPtr)(UmfeldApp*);
-    typedef void         (*DrawFunctionPtr)(UmfeldApp*);
-    typedef void         (*BeatFunctionPtr)(UmfeldApp*, uint32_t);
-    typedef void         (*AudioblockFunctionPtr)(UmfeldApp*, float**, float**, int);
-    typedef const char*  (*NameFunctionPtr)(UmfeldApp*);
-    typedef void         (*EventFunctionPtr)(UmfeldApp*, float*, uint32_t);
+    typedef UmfeldApp*  (*CreateUmfeldFunctionPtr)();
+    typedef void        (*DestroyFunctionPtr)(UmfeldApp*);
+    typedef void        (*SettingsFunctionPtr)(UmfeldApp*);
+    typedef void        (*SetupFunctionPtr)(UmfeldApp*);
+    typedef void        (*DrawFunctionPtr)(UmfeldApp*);
+    typedef void        (*BeatFunctionPtr)(UmfeldApp*, uint32_t);
+    typedef void        (*AudioblockFunctionPtr)(UmfeldApp*, float**, float**, int);
+    typedef const char* (*NameFunctionPtr)(UmfeldApp*);
+    typedef void        (*EventFunctionPtr)(UmfeldApp*, float*, uint32_t);
 
-    CreateUmfeldFunctionPtr   fCreateUmfeldFunction    = nullptr;
-    DestroyFunctionPtr        fDestroyUmfeldFunction   = nullptr;
-    SettingsFunctionPtr       fSettingsFunction        = nullptr;
-    SetupFunctionPtr          fSetupFunction           = nullptr;
-    DrawFunctionPtr           fDrawFunction            = nullptr;
-    BeatFunctionPtr           fBeatFunction            = nullptr;
-    AudioblockFunctionPtr     fAudioblockFunction      = nullptr;
-    NameFunctionPtr           fNameFunction            = nullptr;
-    EventFunctionPtr          fEventFunction           = nullptr;
+    CreateUmfeldFunctionPtr fCreateUmfeldFunction  = nullptr;
+    DestroyFunctionPtr      fDestroyUmfeldFunction = nullptr;
+    SettingsFunctionPtr     fSettingsFunction       = nullptr;
+    SetupFunctionPtr        fSetupFunction          = nullptr;
+    DrawFunctionPtr         fDrawFunction           = nullptr;
+    BeatFunctionPtr         fBeatFunction           = nullptr;
+    AudioblockFunctionPtr   fAudioblockFunction     = nullptr;
+    NameFunctionPtr         fNameFunction           = nullptr;
+    EventFunctionPtr        fEventFunction          = nullptr;
 
     void load_symbols() {
         const std::string mAppName = system::getFilename(fCurrentAppPath);
@@ -338,7 +271,7 @@ struct UmfeldModule : Module {
         mFullDefaultAppPath = pluginInstance->path + "/dep/lib" + mDefaultApp + ".so";
 #elif defined ARCH_WIN
         mFullDefaultAppPath = pluginInstance->path + "/dep/lib" + mDefaultApp + ".dll";
-#elif ARCH_MAC
+#elif defined ARCH_MAC  // Bug #7: was `#elif ARCH_MAC` (missing `defined`)
         mFullDefaultAppPath = pluginInstance->path + "/dep/lib" + mDefaultApp + ".dylib";
 #endif
         return mFullDefaultAppPath;
@@ -350,7 +283,6 @@ struct UmfeldModule : Module {
             fCurrentAppPath = get_default_app_path();
         }
 
-        /* Load app library */
         UMFELD_VCV_LOG("loading app from file: %s", fCurrentAppPath.c_str());
 #if defined ARCH_WIN
         SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
@@ -371,12 +303,20 @@ struct UmfeldModule : Module {
 
     void unload_app() {
         if (umfeld_app) {
-            /* close the library */
             UMFELD_VCV_LOG("unloading app: %p ", mHandleUmfeldSketch);
             destroy_app();
 
+            // Bug #3: null ALL 9 function pointers before dlclose to prevent use-after-free
             fCreateUmfeldFunction  = nullptr;
             fDestroyUmfeldFunction = nullptr;
+            fSettingsFunction      = nullptr;
+            fSetupFunction         = nullptr;
+            fDrawFunction          = nullptr;
+            fBeatFunction          = nullptr;
+            fAudioblockFunction    = nullptr;
+            fNameFunction          = nullptr;
+            fEventFunction         = nullptr;
+
             if (mHandleUmfeldSketch) {
 #if defined ARCH_WIN
                 FreeLibrary((HINSTANCE) mHandleUmfeldSketch);
@@ -419,7 +359,8 @@ struct UmfeldModule : Module {
 
     void reload_app() {
         handle_umfeld_app();
-        mInitializeApp = true;
+        mInitializeApp      = true;
+        mSampleCollectorCounter = 0;
     }
 
 private:
@@ -438,76 +379,53 @@ struct UmfeldWidget : OpenGlWidget {
     }
 
     void appendContextMenu(Menu* menu) {
+        // TODO: add Load Sketch, Reload, and sketch info items
         UMFELD_VCV_LOG("appendContextMenu");
     }
 
     void onPathDrop(const PathDropEvent& e) override {
-        // if (!module) {
-        //     return;
-        // }
         if (e.paths.empty()) {
             return;
         }
         const std::string path = e.paths[0];
-        // if (system::getExtension(path) != ".wav") {
-        //     return;
-        // }
-        // module->wavetable.load(path);
-        // module->wavetable.filename = system::getFilename(path);
         UMFELD_VCV_LOG("onPathDrop: %s", path.c_str());
-        // UMFELD_VCV_LOG("          : %s", system::getFilename(path).c_str());
-        module->set_app_path(path);
+        if (module) {
+            // Bug #2: actually trigger reload after setting path
+            module->set_app_path(path);
+            module->reload_app();
+        }
         e.consume(this);
     }
 
     void drawFramebuffer() override {
         math::Vec fbSize = getFramebufferSize();
-        glViewport(0.0, 0.0, fbSize.x, fbSize.y);
+        glViewport(0, 0, (GLsizei) fbSize.x, (GLsizei) fbSize.y);
 
-        // glClearColor(0, 0, 0, 1.0);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        // glClearColor(module->bg_color_red, module->bg_color_green, module->bg_color_blue, 1.0);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        // Bug #6: removed glMatrixMode/glOrtho/glScalef/glTranslatef — those are
+        // fixed-function GL unavailable in OpenGL 3.2 Core Profile (macOS).
+        // PGraphicsOpenGL manages its own projection via shaders.
 
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0.0, fbSize.x, 0.0, fbSize.y, -1.0, 1.0);
-        glScalef(1.0, -1.0, 1.0);
-        glTranslatef(0.0, -fbSize.y, 0.0);
-
-        //         std::cout << "fbSize: " << fbSize.x << ", " << fbSize.y << std::endl; // 317, 245
-
-        // constexpr float padding = 2 * 15.24;
-        // glColor3f(1, 1, 1);
-        // glBegin(GL_TRIANGLES);
-        // glVertex3f(padding, padding, 0);
-        // glVertex3f(fbSize.x - padding, padding, 0);
-        // glVertex3f(padding, fbSize.y - padding, 0);
-        // glVertex3f(fbSize.x - padding, fbSize.y - padding, 0);
-        // glVertex3f(fbSize.x - padding, padding, 0);
-        // glVertex3f(padding, fbSize.y - padding, 0);
-        // glEnd();
+        // Save GL state that NanoVG may depend on (Core Profile safe — no glPushAttrib)
+        GLint prevFbo, prevVao, prevProgram;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+        glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
+        glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
 
         if (module) {
             module->call_draw();
         } else {
             UMFELD_VCV_LOG("module not set");
         }
+
+        // Restore GL state for NanoVG
+        glBindVertexArray(prevVao);
+        glUseProgram(prevProgram);
+        glBindFramebuffer(GL_FRAMEBUFFER, prevFbo);
     }
 
-    /** see `Widget.hpp` for all events */
-
-    // look into `recursePositionEvent(&Widget::onXXX, e);`
-
-    void onHover(const HoverEvent& e) override {
-        /* occurs when mouse is hovering over widget */
-        // UMFELD_VCV_LOG("onHover: %f, %f p:(%f, %f)", e.pos.x, e.pos.y, e.mouseDelta.x, e.mouseDelta.y);
-    }
+    void onHover(const HoverEvent& e) override {}
 
     void onButton(const ButtonEvent& e) override {
-        /* occurs when mouse is pressed or released over widget */
-        // button: GLFW_MOUSE_BUTTON_LEFT, GLFW_MOUSE_BUTTON_RIGHT, GLFW_MOUSE_BUTTON_MIDDLE
-        // action: GLFW_PRESS or GLFW_RELEASE
         UMFELD_VCV_LOG("onButton: button: %i, action: %i", e.button, e.action);
     }
 
@@ -516,28 +434,14 @@ struct UmfeldWidget : OpenGlWidget {
     }
 
     void onHoverKey(const HoverKeyEvent& e) override {
-        // action: GLFW_RELEASE, GLFW_PRESS, GLFW_REPEAT, or RACK_HELD
         if (e.action == GLFW_PRESS) {
             UMFELD_VCV_LOG("keyPress    : key: %s", e.keyName.c_str());
         } else if (e.action == GLFW_RELEASE) {
             UMFELD_VCV_LOG("keyReleased : key: %s", e.keyName.c_str());
         } else if (e.action == GLFW_REPEAT) {
             UMFELD_VCV_LOG("keyRepeat   : key: %s", e.keyName.c_str());
-        } else if (e.action == RACK_HELD) {
-            // UMFELD_VCV_LOG("keyHeld     : key: %s", e.keyName.c_str());
-        } else {
-            UMFELD_VCV_LOG("onHoverKey  : key: %c, scancode: %i, keyName: %s, action: %i, mods: %i", e.key, e.scancode, e.keyName.c_str(), e.action, e.mods);
         }
     }
-
-    /* these methods below seem to have no effect: */
-    // void onHoverText(const HoverTextEvent& e) override { UMFELD_VCV_LOG("onHoverText: codepoint: %i", e.codepoint); }
-    // void onEnter(const EnterEvent& e) override { UMFELD_VCV_LOG("onEnter"); }
-    // void onLeave(const LeaveEvent& e) override { UMFELD_VCV_LOG("onLeave"); }
-    // void onSelect(const SelectEvent& e) override { UMFELD_VCV_LOG("onSelect"); }
-    // void onDragStart(const DragStartEvent& e) override { UMFELD_VCV_LOG("onDragStart"); }
-    // void onDragEnd(const DragEndEvent& e) override { UMFELD_VCV_LOG("onDragEnd"); }
-    // void onDragDrop(const DragDropEvent& e) override { UMFELD_VCV_LOG("onDragDrop"); }
 };
 
 struct UmfeldModuleWidget : ModuleWidget {
@@ -585,35 +489,11 @@ struct UmfeldModuleWidget : ModuleWidget {
         auto* display   = new UmfeldWidget();
         display->module = module;
 
-        std::cout << "RACK_GRID_WIDTH: " << RACK_GRID_WIDTH << std::endl;
-        std::cout << "box.pos        : " << box.pos.x << ", " << box.pos.y << std::endl;
-        std::cout << "box.size       : " << box.size.x << ", " << box.size.y << std::endl;
-
-        display->box.pos  = Vec(M_GRID_SIZE, (RACK_GRID_HEIGHT / 8) - 10);
-        display->box.size = Vec(box.size.x - 190, RACK_GRID_HEIGHT - 80);
-
-        std::cout << "display->box.pos: " << display->box.pos.x << ", " << display->box.pos.y << std::endl;
-        std::cout << "display->box.size: " << display->box.size.x << ", " << display->box.size.y << std::endl;
-
-        /*
-        box.pos: 0, 0
-        box.size: 450, 380
-        display->box.pos: 15.24, 37.5
-        display->box.size: 260, 300
-        mDisplaySize: 323.666, 220.789
-        */
-
-        Vec mDisplaySize     = mm2px(Vec(109.615, 74.774)); // actual sketch size 323.666, 220.789
+        Vec mDisplaySize     = mm2px(Vec(109.615, 74.774));
         Vec mDisplayPosition = mm2px(Vec(32.595, 21.684));
-        std::cout << "mDisplaySize    : " << mDisplaySize.x << ", " << mDisplaySize.y << std::endl;
-        std::cout << "mDisplayPosition: " << mDisplayPosition.x << ", " << mDisplayPosition.y << std::endl;
-
         display->setSize(mDisplaySize);
         display->setPosition(mDisplayPosition);
-        // display->setSize(Vec(158 * 2, 122 * 2)); // fbSize 1580,1220
-        // display->setPosition(Vec(M_GRID_SIZE * 6, M_GRID_SIZE * 3));
         addChild(display);
-        std::cout << "framebuffer size: " << display->getFramebufferSize().x << ", " << display->getFramebufferSize().y << std::endl;
     }
 };
 
